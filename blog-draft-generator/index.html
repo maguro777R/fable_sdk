@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ブログ下書きジェネレーター</title>
+  <!-- Markdownを見た目つきHTMLに変換するライブラリ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+      background: #f5f3ee;
+      color: #333;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 16px; }
+    .container { display: flex; gap: 24px; max-width: 1100px; margin: 0 auto; flex-wrap: wrap; }
+    .panel {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+    .form-panel { flex: 1; min-width: 300px; }
+    .preview-panel { flex: 2; min-width: 320px; }
+    label { display: block; font-size: .85rem; font-weight: 600; margin: 14px 0 4px; }
+    input, select {
+      width: 100%; padding: 10px;
+      border: 1px solid #ddd; border-radius: 8px; font-size: 1rem;
+    }
+    button {
+      margin-top: 20px; width: 100%; padding: 12px;
+      background: #d97757; color: #fff; border: none; border-radius: 8px;
+      font-size: 1rem; font-weight: 600; cursor: pointer;
+    }
+    button:disabled { background: #ccc; cursor: wait; }
+    #preview { line-height: 1.8; }
+    #preview h1, #preview h2 { margin: 1em 0 .5em; border-bottom: 2px solid #f0e6dc; padding-bottom: .2em; }
+    #preview p, #preview ul { margin-bottom: 1em; }
+    #preview ul { padding-left: 1.5em; }
+    .placeholder { color: #999; }
+    .actions { margin-top: 16px; display: none; }
+    .actions button { width: auto; padding: 8px 16px; background: #555; font-size: .85rem; margin-top: 0; }
+    .error { color: #c0392b; margin-top: 12px; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="panel form-panel">
+      <h1>✍️ ブログ下書きジェネレーター</h1>
+
+      <label>テーマ(必須)</label>
+      <input id="theme" placeholder="例: 初心者向けの自家製パンの作り方" />
+
+      <label>想定読者</label>
+      <input id="audience" placeholder="例: 料理初心者の20〜30代" />
+
+      <label>トーン</label>
+      <select id="tone">
+        <option>親しみやすい</option>
+        <option>真面目・丁寧</option>
+        <option>ユーモアあり</option>
+        <option>専門的</option>
+      </select>
+
+      <label>長さ</label>
+      <select id="length">
+        <option>800字程度</option>
+        <option>1500字程度</option>
+        <option>3000字程度</option>
+      </select>
+
+      <button id="generate">下書きを生成する</button>
+      <div id="error" class="error"></div>
+    </div>
+
+    <div class="panel preview-panel">
+      <div id="preview"><p class="placeholder">ここに下書きのプレビューが表示されます</p></div>
+      <div class="actions" id="actions">
+        <button id="copy">Markdownをコピー</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const btn = document.getElementById("generate");
+    const preview = document.getElementById("preview");
+    const errorBox = document.getElementById("error");
+    let rawMarkdown = "";
+
+    btn.addEventListener("click", async () => {
+      const theme = document.getElementById("theme").value.trim();
+      if (!theme) { errorBox.textContent = "テーマを入力してください"; return; }
+
+      errorBox.textContent = "";
+      btn.disabled = true;
+      btn.textContent = "Claudeが執筆中…(30秒ほどかかります)";
+      preview.innerHTML = '<p class="placeholder">⏳ 生成中…</p>';
+
+      try {
+        // サーバーの /generate にフォーム内容を送る
+        const res = await fetch("/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            theme,
+            audience: document.getElementById("audience").value,
+            tone: document.getElementById("tone").value,
+            length: document.getElementById("length").value,
+          }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        // 返ってきたMarkdownをHTMLに変換して表示
+        rawMarkdown = data.markdown;
+        preview.innerHTML = marked.parse(rawMarkdown);
+        document.getElementById("actions").style.display = "block";
+      } catch (e) {
+        errorBox.textContent = "エラー: " + e.message;
+        preview.innerHTML = '<p class="placeholder">生成に失敗しました</p>';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "下書きを生成する";
+      }
+    });
+
+    document.getElementById("copy").addEventListener("click", () => {
+      navigator.clipboard.writeText(rawMarkdown);
+      document.getElementById("copy").textContent = "✅ コピーしました";
+      setTimeout(() => (document.getElementById("copy").textContent = "Markdownをコピー"), 2000);
+    });
+  </script>
+</body>
+</html>
