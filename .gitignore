@@ -1,0 +1,21 @@
+# 依存パッケージ(npm installで再生成できるので入れない)
+node_modules/
+
+# npmのデバッグログ
+npm-debug.log*
+
+# macOSが勝手に作るファイル
+.DS_Store
+
+# エディタの設定ファイル
+.vscode/
+.idea/
+
+# 環境変数・秘密情報(APIキーなどを書く場合に備えて)
+.env
+.env.*
+
+# 生成物・一時ファイル
+drafts/
+history/
+*.log
