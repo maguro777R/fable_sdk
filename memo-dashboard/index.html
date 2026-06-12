@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📓 今週のメモダッシュボード</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+      background: #f5f3ee; color: #333;
+      padding: 24px; min-height: 100vh;
+    }
+    .wrap { max-width: 900px; margin: 0 auto; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    h1 { font-size: 1.4rem; }
+    .sub { font-size: .8rem; color: #888; margin-top: 4px; }
+    button {
+      padding: 10px 20px; background: #d97757; color: #fff;
+      border: none; border-radius: 8px; font-size: .95rem; font-weight: 600; cursor: pointer;
+    }
+    button:disabled { background: #ccc; cursor: wait; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card {
+      background: #fff; border-radius: 12px; padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+    .card.full { grid-column: 1 / -1; }
+    .card h2 { font-size: 1rem; margin-bottom: 12px; }
+    .card p { line-height: 1.8; }
+    ul { list-style: none; }
+    li { padding: 8px 0; border-bottom: 1px solid #f0ece4; line-height: 1.6; }
+    li:last-child { border-bottom: none; }
+    .todo li::before { content: "☐ "; color: #d97757; }
+    .hl li::before { content: "✨ "; }
+    .files { font-size: .8rem; color: #999; margin-top: 16px; }
+    .placeholder { color: #aaa; }
+    .error { color: #c0392b; margin-top: 12px; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>📓 今週のメモダッシュボード</h1>
+        <div class="sub" id="memoDir"></div>
+      </div>
+      <button id="analyze">今週を分析する</button>
+    </header>
+
+    <div class="grid">
+      <div class="card full">
+        <h2>📝 今週のまとめ</h2>
+        <p id="summary" class="placeholder">「今週を分析する」を押すと、Claudeがメモを読んでまとめてくれます</p>
+      </div>
+      <div class="card">
+        <h2>📌 やり残しリスト</h2>
+        <ul id="todos" class="todo"><li class="placeholder">—</li></ul>
+      </div>
+      <div class="card">
+        <h2>🌟 今週のハイライト</h2>
+        <ul id="highlights" class="hl"><li class="placeholder">—</li></ul>
+      </div>
+    </div>
+    <div class="files" id="files"></div>
+    <div class="error" id="error"></div>
+  </div>
+
+  <script>
+    const btn = document.getElementById("analyze");
+
+    function fillList(id, items, empty) {
+      const ul = document.getElementById(id);
+      ul.innerHTML = "";
+      if (!items || items.length === 0) {
+        ul.innerHTML = `<li class="placeholder">${empty}</li>`;
+        return;
+      }
+      for (const item of items) {
+        const li = document.createElement("li");
+        li.textContent = item; // textContentなのでHTMLとして解釈されず安全
+        ul.appendChild(li);
+      }
+    }
+
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      btn.textContent = "Claudeがメモを読んでいます…(1分ほど)";
+      document.getElementById("error").textContent = "";
+      document.getElementById("summary").textContent = "⏳ 分析中…";
+
+      try {
+        const res = await fetch("/analyze", { method: "POST" });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        document.getElementById("summary").textContent = data.summary;
+        document.getElementById("summary").classList.remove("placeholder");
+        fillList("todos", data.todos, "やり残しなし!お疲れさまでした 🎉");
+        fillList("highlights", data.highlights, "—");
+        document.getElementById("files").textContent =
+          "読んだメモ: " + data.files.join(" / ");
+        document.getElementById("memoDir").textContent = data.memoDir;
+      } catch (e) {
+        document.getElementById("error").textContent = "エラー: " + e.message;
+        document.getElementById("summary").textContent = "分析に失敗しました";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "今週を分析する";
+      }
+    });
+  </script>
+</body>
+</html>
